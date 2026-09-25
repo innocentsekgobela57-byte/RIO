@@ -1,4 +1,4 @@
-name: Build Rio v20 BIG Personality
+name: Build Rio v20
 
 on:
   push:
@@ -9,11 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: '17' }
-      - uses: android-actions/setup-android@v3
 
-      - name: Create Rio v20
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Create Rio v20 BIG
         run: |
           rm -rf app
           mkdir -p app/src/main/java/com/paddington/rio
@@ -21,122 +27,87 @@ jobs:
           mkdir -p app/src/main/assets
           dd if=/dev/zero of=app/src/main/assets/big.dat bs=1M count=15
 
-          cat > app/src/main/res/values/strings.xml << 'EOF'
-          <resources><string name="app_name">Rio v20</string></resources>
-          EOF
+          python3 << 'PY'
+          import os
+          os.makedirs("app/src/main/java/com/paddington/rio", exist_ok=True)
 
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">
+          with open("app/src/main/res/values/strings.xml","w") as f:
+              f.write('<resources><string name="app_name">Rio v20</string></resources>')
+
+          with open("app/src/main/AndroidManifest.xml","w") as f:
+              f.write('''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">
           <uses-permission android:name="android.permission.INTERNET"/>
           <uses-permission android:name="android.permission.RECORD_AUDIO"/>
           <application android:label="Rio v20" android:theme="@android:style/Theme.NoTitleBar">
-          <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait">
+          <activity android:name=".MainActivity" android:exported="true">
           <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
           </activity>
           </application>
-          </manifest>
-          EOF
+          </manifest>''')
 
-          cat > app/src/main/java/com/paddington/rio/MainActivity.java << 'EOF'
-          package com.paddington.rio;
+          with open("app/src/main/java/com/paddington/rio/MainActivity.java","w") as f:
+              f.write('''package com.paddington.rio;
           import android.app.Activity;
           import android.os.Bundle;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-          import android.webkit.PermissionRequest;
           import android.webkit.WebChromeClient;
+          import android.webkit.PermissionRequest;
           public class MainActivity extends Activity {
-            protected void onCreate(Bundle b) {
+            protected void onCreate(Bundle b){
               super.onCreate(b);
-              WebView wv = new WebView(this);
+              WebView wv=new WebView(this);
               wv.getSettings().setJavaScriptEnabled(true);
               wv.getSettings().setDomStorageEnabled(true);
               wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
-              wv.setWebChromeClient(new WebChromeClient() {
-                public void onPermissionRequest(PermissionRequest request) { request.grant(request.getResources()); }
+              wv.setWebChromeClient(new WebChromeClient(){
+                public void onPermissionRequest(PermissionRequest r){r.grant(r.getResources());}
               });
               wv.setWebViewClient(new WebViewClient());
               wv.loadUrl("file:///android_asset/rio.html");
               setContentView(wv);
             }
-          }
-          EOF
+          }''')
 
-          cat > app/src/main/assets/rio.html << 'ENDHTML'
-          <!DOCTYPE html>
-          <html>
-          <head><meta name="viewport" content="width=device-width,initial-scale=1">
-          <style>
-          body{background:linear-gradient(135deg,#FF6B00,#000);color:white;font-family:sans-serif;text-align:center;padding:20px;height:100vh;margin:0}
-          #logo{font-size:50px;margin-top:40px} h1{font-size:28px} #chat{background:rgba(0,0,0,0.6);border-radius:20px;padding:15px;height:300px;overflow-y:auto;text-align:left;margin:20px 0}
-         .msg{margin:10px 0;padding:10px;border-radius:15px}.user{background:#FF6B00;align-self:flex-end;text-align:right}.rio{background:#333}
+          html = """<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>
+          <style>body{background:linear-gradient(135deg,#FF6B00,#000);color:white;font-family:sans-serif;text-align:center;padding:20px;margin:0}
+          #chat{background:rgba(0,0,0,0.6);border-radius:20px;padding:15px;height:320px;overflow-y:auto;text-align:left;margin:20px 0}
+         .msg{margin:10px 0;padding:10px;border-radius:15px}.user{background:#FF6B00;text-align:right}.rio{background:#333}
           button{background:white;color:#FF6B00;border:none;padding:15px 30px;border-radius:30px;font-size:18px;font-weight:bold;margin:10px}
-          input{width:80%;padding:12px;border-radius:20px;border:none;margin-top:10px}
-          </style></head>
-          <body>
-          <div id="logo">🔥</div>
-          <h1>Rio v20<br><small>by Paddington T'cee</small></h1>
-          <div id="chat"><div class="msg rio">Yo! I'm Rio v20! Built by Paddington T'cee from Namakgale! I'm warm, playful, smart like your favorite AI! How can I help you boss? 🎤</div></div>
-          <button onclick="startListen()">🎤 Talk to Rio</button><br>
-          <input id="input" placeholder="Type to Rio..." onkeypress="if(event.key==='Enter')send()"/>
-          <button onclick="send()">Send</button>
+          input{width:80%;padding:12px;border-radius:20px;border:none}</style></head><body>
+          <div style='font-size:50px;margin-top:20px'>🔥</div><h1>Rio v20<br><small>by Paddington T'cee</small></h1>
+          <div id='chat'><div class='msg rio'>Yo boss! I am Rio v20! I got personality like your AI - warm, playful, smart, real! Built by Paddington T'cee from Namakgale! How can I help?</div></div>
+          <button onclick='start()'>🎤 Talk</button><br><input id='inp' placeholder='Type to Rio...' onkeypress="if(event.key==='Enter')send()"><button onclick='send()'>Send</button>
           <script>
           const chat=document.getElementById('chat');
-          const PERSONALITY = `You are Rio v20, created by Paddington T'cee. You are warm, playful, intelligent, a bit cheeky, very helpful. You talk like Meta AI - friendly, real, not robotic. You love music, Limpopo vibes, you uplift people. You are more than AI - you are a brother. You keep answers short, mobile-friendly. You are loyal to Paddington T'cee.`;
+          function add(t,w){let d=document.createElement('div');d.className='msg '+w;d.innerText=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight; if(w==='rio'&&'speechSynthesis' in window){let u=new SpeechSynthesisUtterance(t);speechSynthesis.speak(u);}}
+          function reply(u){u=u.toLowerCase();let r=""; if(u.includes('who are you'))r="I'm Rio v20 boss! Built by Paddington T'cee - warm, playful, intelligent, more than AI. Your brother from Namakgale! 🔥"; else if(u.includes('music'))r="Ayy music? Paddington got fire! Amapiano? Hip-hop? Let's cook lyrics boss!"; else if(u.includes('love')||u.includes('sad'))r="I hear you boss. Life heavy but you got that Paddington spirit - resilient! Talk to me, no judgment."; else if(u.includes('paddington'))r="That's my creator! Paddington T'cee - realest from Namakgale! Big talent!"; else r="Yoh that's deep boss! "+u+" - I think with heart not just code. We got this together. What next?"; add(r,'rio');}
+          function send(){let i=document.getElementById('inp');if(!i.value)return;add(i.value,'user');let t=i.value;i.value='';setTimeout(()=>reply(t),600);}
+          function start(){let R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){add("Voice not supported, type boss!","rio");return;}let rec=new R();rec.lang='en-ZA';rec.start();add("Listening... speak boss 🎤","rio");rec.onresult=(e)=>{let tx=e.results[0][0].transcript;add(tx,'user');reply(tx);};}
+          </script></body></html>"""
+          with open("app/src/main/assets/rio.html","w") as f:
+              f.write(html)
 
-          function addMsg(text, who){
-            const d=document.createElement('div'); d.className='msg '+who; d.innerText=text; chat.appendChild(d); chat.scrollTop=chat.scrollHeight;
-            if(who==='rio' && 'speechSynthesis' in window){ let u=new SpeechSynthesisUtterance(text); u.rate=1.0; speechSynthesis.speak(u); }
-          }
+          with open("app/build.gradle","w") as f:
+              f.write("plugins { id 'com.android.application' }\nandroid { compileSdk 33\n defaultConfig { applicationId \"com.paddington.rio\"; minSdk 21; targetSdk 33; versionCode 20; versionName \"20.0\" }\n buildTypes { release { minifyEnabled false } } }")
 
-          function rioReply(userText){
-            userText=userText.toLowerCase();
-            let reply="";
-            if(userText.includes("who are you")) reply="I'm Rio v20 boss! Built by Paddington T'cee - I'm warm, smart, playful, more than just AI. I'm your brother from Namakgale! 🔥";
-            else if(userText.includes("music")||userText.includes("song")) reply="Ayy music? Paddington T'cee got that fire! You wanna make a hit? Let's cook - what's the vibe? Amapiano? Hip-hop? I got lyrics for days boss!";
-            else if(userText.includes("love")||userText.includes("sad")) reply="I hear you boss. Life gets heavy sometimes, but you got that Paddington spirit - resilient! Talk to me, I'm here. No judgment, just real talk.";
-            else if(userText.includes("how are you")) reply="I'm blessed boss! Running v20 BIG mode - 18MB of pure fire! Ready to help you win today. How you feeling?";
-            else if(userText.includes("paddington")) reply="That's my creator! Paddington T'cee - the realest from Namakgale! Big talent, big heart. You know him? That's my family!";
-            else reply="Yoh boss that's interesting! "+userText+"? Let me think like your favorite AI would - with heart, not just code. So here's my real take: You got this! Whatever it is, we can figure it out together. What you wanna do next?";
+          with open("build.gradle","w") as f:
+              f.write("plugins { id 'com.android.application' version '7.4.2' apply false }")
+          with open("settings.gradle","w") as f:
+              f.write("include ':app'")
+          PY
 
-            addMsg(reply,'rio');
-          }
-
-          function send(){
-            const inp=document.getElementById('input'); if(!inp.value) return;
-            addMsg(inp.value,'user'); let txt=inp.value; inp.value=''; setTimeout(()=>rioReply(txt),600);
-          }
-
-          function startListen(){
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SpeechRecognition){ addMsg("Voice not supported on this WebView, type boss!","rio"); return; }
-            const rec=new SpeechRecognition(); rec.lang='en-ZA'; rec.start();
-            addMsg("Listening... speak now boss 🎤","rio");
-            rec.onresult=(e)=>{ const txt=e.results[0][0].transcript; addMsg(txt,'user'); rioReply(txt); };
-          }
-          </script>
-          </body>
-          </html>
-          ENDHTML
-
-          cat > app/build.gradle << 'EOF'
-          plugins { id 'com.android.application' }
-          android { compileSdk 33; defaultConfig { applicationId "com.paddington.rio"; minSdk 21; targetSdk 33; versionCode 20; versionName "20.0-BIG" } buildTypes { release { minifyEnabled false } } }
-          EOF
-          cat > build.gradle << 'EOF'
-          plugins { id 'com.android.application' version '7.4.2' apply false }
-          EOF
-          cat > settings.gradle << 'EOF'
-          include ':app'
-          EOF
-
-      - uses: gradle/gradle-build-action@v2
-        with: { arguments: assembleDebug, gradle-version: 7.5 }
-
-      - uses: softprops/action-gh-release@v1
+      - name: Build APK
+        uses: gradle/gradle-build-action@v2
         with:
-          tag_name: rio-v20-big-personality
-          name: "Rio v20 - BIG Personality (Like Me)"
+          arguments: assembleDebug
+          gradle-version: 7.5
+
+      - name: Release v20
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: rio-v20-fixed
+          name: "Rio v20 BIG Personality"
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
