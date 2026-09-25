@@ -1,0 +1,141 @@
+name: Build RIO APK
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+      - name: Create Rio Project
+        run: |
+          mkdir -p app/src/main/java/com/rio/voice
+          mkdir -p app/src/main/res/layout
+          cat > settings.gradle << 'EOF'
+          include ':app'
+          EOF
+          cat > build.gradle << 'EOF'
+          buildscript {
+            dependencies { classpath "com.android.tools.build:gradle:8.2.0" }
+            repositories { google(); mavenCentral() }
+          }
+          EOF
+          cat > app/build.gradle << 'EOF'
+          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+          android {
+            namespace 'com.rio.voice'; compileSdk 34
+            defaultConfig { applicationId "com.rio.voice"; minSdk 26; targetSdk 34; versionCode 1; versionName "12" }
+            buildTypes { release { minifyEnabled false } }
+          }
+          dependencies { implementation "androidx.core:core-ktx:1.12.0"; implementation "androidx.appcompat:appcompat:1.6.1"; implementation "com.google.android.gms:play-services-location:21.0.1" }
+          EOF
+          cat > app/src/main/AndroidManifest.xml << 'MAN'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+            <uses-permission android:name="android.permission.CAMERA"/>
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+            <uses-permission android:name="android.permission.READ_CONTACTS"/>
+            <uses-permission android:name="android.permission.CALL_PHONE"/>
+            <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS"/>
+            <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+            <uses-permission android:name="android.permission.FLASHLIGHT"/>
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+            <application android:label="Rio" android:theme="@android:style/Theme.Black">
+              <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+              <service android:name=".RioService" android:foregroundServiceType="microphone|location|camera"/>
+            </application>
+          </manifest>
+          MAN
+          cat > app/src/main/java/com/rio/voice/MainActivity.kt << 'KT'
+          package com.rio.voice
+          import android.os.Bundle
+          import androidx.appcompat.app.AppCompatActivity
+          class MainActivity : AppCompatActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+              super.onCreate(savedInstanceState)
+              android.content.Intent(this, RioService::class.java).also { startForegroundService(it) }
+            }
+          }
+          KT
+          cat > app/src/main/java/com/rio/voice/RioService.kt << 'KT'
+          package com.rio.voice
+          import android.app.*
+          import android.content.Intent
+          import android.os.IBinder
+          class RioService : Service() {
+            private lateinit var voice: RioVoiceManager
+            override fun onCreate() {
+              super.onCreate()
+              val ch = NotificationChannel("rio","Rio", NotificationManager.IMPORTANCE_LOW); (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(ch)
+              val notif = Notification.Builder(this,"rio").setContentTitle("Rio listening for 'Rio'...").setSmallIcon(android.R.drawable.ic_btn_speak_now).build()
+              startForeground(1, notif)
+              voice = RioVoiceManager(this)
+              voice.startListening()
+            }
+            override fun onBind(intent: Intent?): IBinder? = null
+          }
+          KT
+          cat > app/src/main/java/com/rio/voice/RioVoiceManager.kt << 'KT'
+          package com.rio.voice
+          import android.content.Context; import android.content.Intent; import android.speech.*; import android.speech.tts.TextToSpeech; import java.util.Locale
+          class RioVoiceManager(val ctx: Context): TextToSpeech.OnInitListener {
+            var tts: TextToSpeech = TextToSpeech(ctx,this); var sr: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(ctx)
+            fun startListening(){
+              val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM) }
+              sr.setRecognitionListener(object: RecognitionListener {
+                override fun onResults(p0: Bundle?) { val text = p0?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.get(0)?: ""; handle(text); startListening() }
+                override fun onError(p0: Int) { startListening() }
+                override fun onReadyForSpeech(p0: Bundle?) {}; override fun onBeginningOfSpeech() {}; override fun onRmsChanged(p0: Float) {}; override fun onBufferReceived(p0: ByteArray?) {}; override fun onEndOfSpeech() {}; override fun onEvent(p0: Int, p1: Bundle?) {}; override fun onPartialResults(p0: Bundle?) {}
+              })
+              sr.startListening(intent)
+            }
+            fun handle(cmd: String){
+              if(!cmd.lowercase().contains("rio")) return
+              speak("At your service boss")
+              RioActions(ctx).execute(cmd)
+            }
+            fun speak(s: String){ tts.speak(s, TextToSpeech.QUEUE_FLUSH, null, null) }
+            override fun onInit(p0: Int) { tts.language = Locale.US }
+          }
+          KT
+          cat > app/src/main/java/com/rio/voice/RioActions.kt << 'KT'
+          package com.rio.voice
+          import android.content.Context; import android.content.Intent; import android.hardware.camera2.CameraManager; import android.media.AudioManager; import android.provider.ContactsContract
+          class RioActions(val ctx: Context){
+            fun execute(cmd: String){
+              val c = cmd.lowercase()
+              when {
+                c.contains("open") -> openApp(c)
+                c.contains("call") -> callContact(c)
+                c.contains("whatsapp") -> sendWhatsApp(c)
+                c.contains("volume down") -> vol(-1)
+                c.contains("volume up") -> vol(1)
+                c.contains("where am i") || c.contains("weather") -> location()
+                c.contains("flashlight") || c.contains("where are you") -> torch()
+                c.contains("unlock") -> unlock()
+                else -> RioVoiceManager(ctx).speak("Done boss")
+              }
+            }
+            fun openApp(c: String){ val apps = mapOf("youtube" to "com.google.android.youtube","whatsapp" to "com.whatsapp","chrome" to "com.android.chrome","settings" to "com.android.settings"); for((k,v) in apps) if(c.contains(k)){ val i = ctx.packageManager.getLaunchIntentForPackage(v); if(i!=null){ i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); ctx.startActivity(i); RioVoiceManager(ctx).speak("$k opened") } } }
+            fun callContact(c: String){ val name = c.replace("rio","").replace("call","").trim(); val cr = ctx.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE?", arrayOf("%$name%"), null); if(cr!=null && cr.moveToFirst()){ val num = cr.getString(cr.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)); val intent = Intent(Intent.ACTION_CALL).apply { data = android.net.Uri.parse("tel:$num"); addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }; ctx.startActivity(intent); RioVoiceManager(ctx).speak("Calling $name") }; cr?.close() }
+            fun sendWhatsApp(c: String){ val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; setPackage("com.whatsapp"); putExtra(Intent.EXTRA_TEXT, "Mom I'll be late today cuz I'm at study"); addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }; ctx.startActivity(intent) }
+            fun vol(d: Int){ val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager; am.adjustVolume(d, AudioManager.FLAG_SHOW_UI) }
+            fun location(){ RioVoiceManager(ctx).speak("Getting your location boss") }
+            fun torch(){ val cm = ctx.getSystemService(Context.CAMERA_SERVICE) as CameraManager; cm.setTorchMode(cm.cameraIdList[0], true); RioVoiceManager(ctx).speak("Flashlight on, I'm here") }
+            fun unlock(){ RioVoiceManager(ctx).speak("Opening camera for face unlock") }
+          }
+          KT
+          echo "RIO project created"
+      - name: Build APK
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rio-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
