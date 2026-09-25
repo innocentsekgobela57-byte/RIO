@@ -1,4 +1,139 @@
-name: Rio V8 Stable
+package com.rio.ai
+
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.hardware.camera2.CameraManager
+import android.media.AudioManager
+import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import java.util.Locale
+import kotlin.random.Random
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var cameraManager: CameraManager
+    private lateinit var audioManager: AudioManager
+    private lateinit var inputText: EditText
+    private lateinit var resultText: TextView
+
+    private val jokes = listOf(
+        "Why did the phone go to school? To improve its CELL-f!",
+        "I told my phone a joke, it CRACKED up!",
+        "Why is Rio the best AI? Because he never runs out of BATTERY!"
+    )
+
+    private val speechLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)?: ""
+        inputText.setText(spoken)
+        handleMix(spoken.lowercase())
+    }
+
+    private val askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if(ok) startVoice() else Toast.makeText(this, "Need mic bro!", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        cameraManager = getSystemService(CameraManager::class.java)
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        inputText = findViewById(R.id.inputText)
+        resultText = findViewById(R.id.resultText)
+
+        findViewById<Button>(R.id.btnSend).setOnClickListener {
+            handleMix(inputText.text.toString().lowercase())
+        }
+        findViewById<Button>(R.id.btnMic).setOnClickListener {
+            if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startVoice()
+            else askMic.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun startVoice() {
+        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Rio is listening...")
+        }
+        try { speechLauncher.launch(i) } catch (e: Exception) { Toast.makeText(this, "No speech app", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun handleMix(cmd: String) {
+        try {
+            when {
+                // TORCH
+                cmd.contains("torch on") || cmd.contains("flash on") -> { setTorch(true); resultText.text = "Torch ON 🔦" }
+                cmd.contains("torch off") || cmd.contains("flash off") -> { setTorch(false); resultText.text = "Torch OFF" }
+
+                // VOLUME - NEW MIX
+                cmd.contains("volume up") || cmd.contains("increase volume") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                    resultText.text = "Volume Up 🔊"
+                }
+                cmd.contains("volume down") || cmd.contains("decrease volume") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                    resultText.text = "Volume Down 🔉"
+                }
+                cmd.contains("mute") -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
+                    resultText.text = "Muted 🔇"
+                }
+
+                // JOKES - NEW MIX
+                cmd.contains("joke") || cmd.contains("crack") -> {
+                    resultText.text = jokes[Random.nextInt(jokes.size)]
+                }
+
+                // DATA/WIFI - INFO (Android 10+ can't toggle directly)
+                cmd.contains("data on") || cmd.contains("wifi on") -> {
+                    resultText.text = "Bro, Android blocks direct Data/WIFI toggle for security. I can open settings for you."
+                    startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                }
+
+                // OPEN APP
+                cmd.contains("open") -> {
+                    val name = cmd.replace("open", "").trim()
+                    openApp(name)
+                }
+
+                else -> resultText.text = "I got you: torch on/off, volume up/down, crack a joke, open [app]"
+            }
+        } catch (e: Exception) {
+            resultText.text = "Crash blocked: ${e.message}"
+        }
+    }
+
+    private fun setTorch(on: Boolean) {
+        try {
+            val id = cameraManager.cameraIdList[0]
+            cameraManager.setTorchMode(id, on)
+        } catch (e: Exception) { resultText.text = "Torch error" }
+    }
+
+    private fun openApp(name: String) {
+        try {
+            val pm = packageManager
+            for (app in pm.getInstalledApplications(0)) {
+                val label = pm.getApplicationLabel(app).toString().lowercase()
+                // MIX FIX: nicknames
+                val nick = name.replace("fb", "facebook").replace("yt", "youtube").replace("wp", "whatsapp")
+                if (label.contains(nick)) {
+                    pm.getLaunchIntentForPackage(app.packageName)?.let { startActivity(it); resultText.text = "Opening $label 🚀"; return }
+                }
+            }
+            resultText.text = "App not found: $name"
+        } catch (e: Exception) { resultText.text = "Open failed" }
+    }
+}: Rio V8 Stable
 on:
   push:
     branches: [ main ]
