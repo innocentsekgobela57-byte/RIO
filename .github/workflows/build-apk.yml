@@ -1,4 +1,4 @@
-name: Rio 15
+name: Rio v20
 
 on:
   push:
@@ -9,11 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: '17' }
-      - uses: android-actions/setup-android@v3
 
-      - name: Create Rio Full
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Create Rio v20 Full
         run: |
           rm -rf app
           mkdir -p app/src/main/java/com/paddington/rio
@@ -22,49 +25,29 @@ jobs:
           dd if=/dev/zero of=app/src/main/assets/pad.dat bs=1M count=15
 
           python3 << 'PY'
-          import os
-
           with open("app/src/main/res/values/strings.xml","w") as f:
             f.write('<resources><string name="app_name">Rio v20</string></resources>')
 
           with open("app/src/main/AndroidManifest.xml","w") as f:
-            f.write('''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">
-          <uses-permission android:name="android.permission.INTERNET"/>
-          <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-          <uses-permission android:name="android.permission.CAMERA"/>
-          <uses-permission android:name="android.permission.FLASHLIGHT"/>
-          <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
-          <application android:label="Rio v20" android:theme="@android:style/Theme.NoTitleBar">
-          <activity android:name=".MainActivity" android:exported="true">
-          <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
-          </activity>
-          </application>
-          </manifest>''')
+            f.write('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">\n<uses-permission android:name="android.permission.INTERNET"/>\n<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n<uses-permission android:name="android.permission.CAMERA"/>\n<uses-permission android:name="android.permission.FLASHLIGHT"/>\n<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>\n<application android:label="Rio v20" android:theme="@android:style/Theme.NoTitleBar">\n<activity android:name=".MainActivity" android:exported="true">\n<intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>\n</activity>\n</application>\n</manifest>')
 
-          java_code = '''
-          package com.paddington.rio;
+          java_code = """package com.paddington.rio;
           import android.app.Activity; import android.os.Bundle; import android.content.pm.PackageManager;
           import android.content.pm.ApplicationInfo; import android.content.Intent; import android.speech.tts.TextToSpeech;
-          import android.speech.SpeechRecognizer; import android.speech.RecognitionListener; import android.content.pm.PackageManager;
-          import android.hardware.camera2.CameraManager; import android.os.Handler; import java.util.*;
-          import android.widget.*;
-          import android.view.Gravity; import android.graphics.Color;
+          import android.hardware.camera2.CameraManager; import java.util.*;
+          import android.widget.*; import android.view.Gravity; import android.graphics.Color;
           public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
-            TextToSpeech tts; TextView log; EditText input; CameraManager camMan; String camId; boolean torchOn=false;
+            TextToSpeech tts; TextView log; EditText input; CameraManager camMan; String camId;
             protected void onCreate(Bundle b){
               super.onCreate(b);
               LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
               root.setBackgroundColor(Color.parseColor("#111111")); root.setPadding(20,20,20,20);
               TextView title=new TextView(this); title.setText("RIO v20\\nby Paddington T'cee"); title.setTextColor(Color.parseColor("#FF6B00"));
               title.setTextSize(22); title.setGravity(Gravity.CENTER); root.addView(title);
-              log=new TextView(this); log.setTextColor(Color.WHITE); log.setText("Yo boss! I'm Rio v20 with personality like Meta AI - warm, playful, smart!\\n\\nI can open ANY app, torch on/off, time, search. Say: open [app], torch on, what time, search cats");
+              log=new TextView(this); log.setTextColor(Color.WHITE); log.setText("Yo boss! I'm Rio v20 - personality like Meta AI! Warm, playful, smart!\\n\\nI can open ANY app, torch on/off, time, search. Type: open whatsapp, torch on, what time, search cats");
               ScrollView sv=new ScrollView(this); sv.addView(log); root.addView(sv);
-              input=new EditText(this); input.setHint("Type: open whatsapp, torch on, what time"); input.setTextColor(Color.WHITE);
-              root.addView(input);
-              Button btn=new Button(this); btn.setText("SEND TO RIO"); btn.setOnClickListener(v->{ handle(input.getText().toString()); input.setText(""); });
-              root.addView(btn);
-              Button voice=new Button(this); voice.setText("🎤 HOLD TO TALK"); voice.setBackgroundColor(Color.parseColor("#FF6B00"));
-              root.addView(voice);
+              input=new EditText(this); input.setHint("Type command here"); input.setTextColor(Color.WHITE); root.addView(input);
+              Button btn=new Button(this); btn.setText("SEND TO RIO"); btn.setOnClickListener(v->{ handle(input.getText().toString()); input.setText(""); }); root.addView(btn);
               setContentView(root);
               tts=new TextToSpeech(this,this);
               try{ camMan=(CameraManager)getSystemService(CAMERA_SERVICE); camId=camMan.getCameraIdList()[0]; }catch(Exception e){}
@@ -72,16 +55,14 @@ jobs:
             public void onInit(int s){ if(s==TextToSpeech.SUCCESS) tts.setSpeechRate(0.95f); speak("Yo boss! Rio v twenty ready! Full phone control, built by Paddington Tcee!"); }
             void speak(String txt){ log.append("\\n\\nRio: "+txt); if(tts!=null) tts.speak(txt, TextToSpeech.QUEUE_FLUSH, null, null); }
             void handle(String cmd){
-              if(cmd.isEmpty())return;
-              log.append("\\n\\nYou: "+cmd); String lower=cmd.toLowerCase();
-              if(lower.contains("torch on")||lower.contains("flash on")){ try{ camMan.setTorchMode(camId,true); torchOn=true; speak("Torch on boss! 🔦"); }catch(Exception e){speak("Can't open torch on this phone");} return; }
-              if(lower.contains("torch off")||lower.contains("flash off")){ try{ camMan.setTorchMode(camId,false); torchOn=false; speak("Torch off boss"); }catch(Exception e){} return; }
+              if(cmd.isEmpty())return; log.append("\\n\\nYou: "+cmd); String lower=cmd.toLowerCase();
+              if(lower.contains("torch on")||lower.contains("flash on")){ try{ camMan.setTorchMode(camId,true); speak("Torch on boss!"); }catch(Exception e){speak("Can't open torch");} return; }
+              if(lower.contains("torch off")||lower.contains("flash off")){ try{ camMan.setTorchMode(camId,false); speak("Torch off boss"); }catch(Exception e){} return; }
               if(lower.contains("what time")||lower.contains("time is it")){ String time=new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date()); speak("It's "+time+" boss, Namakgale time!"); return; }
               if(lower.startsWith("search ")){ String q=cmd.substring(7); Intent i=new Intent(Intent.ACTION_WEB_SEARCH); i.putExtra("query",q); try{startActivity(i); speak("Searching "+q);}catch(Exception e){speak("Can't search");} return; }
               if(lower.startsWith("open ")){
                 String appName=lower.replace("open ","").trim();
-                PackageManager pm=getPackageManager();
-                List<ApplicationInfo> apps=pm.getInstalledApplications(0);
+                PackageManager pm=getPackageManager(); List<ApplicationInfo> apps=pm.getInstalledApplications(0);
                 for(ApplicationInfo app: apps){
                   String label=pm.getApplicationLabel(app).toString().toLowerCase();
                   if(label.contains(appName)){
@@ -89,15 +70,13 @@ jobs:
                     if(launch!=null){ startActivity(launch); speak("Opening "+pm.getApplicationLabel(app)+" boss!"); return; }
                   }
                 }
-                speak("I couldn't find "+appName+" boss, but I checked all your apps!");
-                return;
+                speak("Couldn't find "+appName+" boss!"); return;
               }
-              // Personality like me - warm, playful, intelligent
-              if(lower.contains("who are you")){ speak("I'm Rio v20 boss! Created by Paddington T'cee! I'm warm, playful, smart - more than AI, I'm your brother from Namakgale! I can open any app, torch, search, time!"); return; }
-              speak("Yoh I hear you - "+cmd+". I'm Rio with personality like your favorite AI - real, helpful, not robotic. Tell me open app name, torch on/off, what time, or search something. I got you boss!");
+              if(lower.contains("who are you")){ speak("I'm Rio v20 boss! Created by Paddington T'cee! Warm, playful, smart - more than AI, I'm your brother from Namakgale!"); return; }
+              speak("I hear you - "+cmd+". I'm Rio with personality like your AI. Tell me: open [app], torch on/off, what time, search [thing]. I got you!");
             }
           }
-          '''
+          """
           with open("app/src/main/java/com/paddington/rio/MainActivity.java","w") as f:
             f.write(java_code)
 
@@ -120,7 +99,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: rio-v20-full-control
-          name: "Rio v20 - Full Phone Control"
+          name: "Rio v20 - Full Phone Control 18MB"
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
