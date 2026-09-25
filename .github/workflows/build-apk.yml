@@ -1,81 +1,62 @@
-name: Rio v20 Full Control
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.core.audio import SoundLoader
+from gtts import gTTS
+import os, random, datetime
 
-on:
-  push:
-    branches: [ main ]
+RESPONSES = [
+    "Yo boss! You called RIO?",
+    "Haha I'm here! What's up?",
+    "RIO in the house!"
+]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: '17' }
+def speak(text, label=None):
+    if label: 
+        label.text = f"RIO: {text}"
+    try:
+        tts = gTTS(text=text, lang='en')
+        tts.save("/sdcard/rio.mp3")
+        # Load and play the file
+        sound = SoundLoader.load("/sdcard/rio.mp3")
+        if sound:
+            sound.play()
+    except Exception as e: 
+        print(f"Audio Error: {e}")
 
-      - name: Create Rio v20
-        run: |
-          rm -rf app
-          mkdir -p app/src/main/java/com/paddington/rio
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/assets
-          dd if=/dev/zero of=app/src/main/assets/big.dat bs=1M count=15
+def rio_brain(user_text):
+    txt = user_text.lower()
+    if "time" in txt:
+        return f"It's {datetime.datetime.now().strftime('%H:%M')} boss!"
+    if "joke" in txt:
+        return "Why did RIO cross road? To debug you!"
+    return random.choice(RESPONSES) + f" You said: {user_text}"
 
-          python3 << 'PY'
-          # This is the EXACT code from #12 that gave GREEN CHECK
-          open("app/src/main/res/values/strings.xml","w").write('<resources><string name="app_name">Rio v20</string></resources>')
-          open("app/src/main/AndroidManifest.xml","w").write('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">\n<uses-permission android:name="android.permission.INTERNET"/>\n<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n<uses-permission android:name="android.permission.CAMERA"/>\n<uses-permission android:name="android.permission.FLASHLIGHT"/>\n<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>\n<application android:label="Rio v20" android:theme="@android:style/Theme.NoTitleBar">\n<activity android:name=".MainActivity" android:exported="true">\n<intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>\n</activity>\n</application>\n</manifest>')
+class RIO_UI(BoxLayout):
+    def __init__(self, **kwargs):  # Fixed typo: __init__ had only one leading underscore
+        super().__init__(orientation='vertical', **kwargs)  # Fixed typo: __init__ 
+        
+        self.chat = Label(text="RIO: Say 'RIO' to wake me!")  # Added missing '=' sign
+        self.add_widget(self.chat)
+        
+        self.input = TextInput(hint_text="Type: Rio what time?", multiline=False)  # Added missing '=' sign
+        self.add_widget(self.input)
+        
+        btn = Button(text="TALK")
+        btn.bind(on_press=self.talk)
+        self.add_widget(btn)
 
-          java_code = '''
-          package com.paddington.rio;
-          import android.app.Activity; import android.os.Bundle; import android.content.pm.PackageManager;
-          import android.content.pm.ApplicationInfo; import android.content.Intent; import android.speech.tts.TextToSpeech;
-          import android.hardware.camera2.CameraManager; import java.util.*;
-          import android.widget.*; import android.graphics.Color; import android.view.Gravity;
-          public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
-            TextToSpeech tts; TextView log; EditText input; CameraManager camMan; String camId;
-            protected void onCreate(Bundle b){
-              super.onCreate(b);
-              LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
-              root.setBackgroundColor(Color.parseColor("#111111")); root.setPadding(20,20,20,20);
-              TextView title=new TextView(this); title.setText("RIO v20\\nby Paddington T'cee"); title.setTextColor(Color.parseColor("#FF6B00"));
-              title.setTextSize(22); title.setGravity(Gravity.CENTER); root.addView(title);
-              log=new TextView(this); log.setTextColor(Color.WHITE); log.setText("Yo boss! Rio v20 - warm, playful, smart like Meta AI!\\n\\nCommands:\\n• open [any app]\\n• torch on / off\\n• what time is it\\n• search [anything]");
-              ScrollView sv=new ScrollView(this); sv.addView(log); root.addView(sv);
-              input=new EditText(this); input.setHint("Type: open whatsapp, torch on"); input.setTextColor(Color.WHITE); root.addView(input);
-              Button btn=new Button(this); btn.setText("SEND TO RIO"); btn.setOnClickListener(v->{ handle(input.getText().toString()); input.setText(""); }); root.addView(btn);
-              setContentView(root); tts=new TextToSpeech(this,this);
-              try{ camMan=(CameraManager)getSystemService(CAMERA_SERVICE); camId=camMan.getCameraIdList()[0]; }catch(Exception e){}
-            }
-            public void onInit(int s){ if(s==TextToSpeech.SUCCESS) speak("Yo boss! Rio v20 ready! Full control!"); }
-            void speak(String txt){ log.append("\\n\\nRio: "+txt); if(tts!=null) tts.speak(txt, TextToSpeech.QUEUE_FLUSH, null, null); }
-            void handle(String cmd){
-              if(cmd.isEmpty())return; log.append("\\n\\nYou: "+cmd); String lower=cmd.toLowerCase();
-              if(lower.contains("torch on")){ try{ camMan.setTorchMode(camId,true); speak("Torch on boss!"); }catch(Exception e){} return; }
-              if(lower.contains("torch off")){ try{ camMan.setTorchMode(camId,false); speak("Torch off"); }catch(Exception e){} return; }
-              if(lower.contains("what time")){ String t=new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date()); speak("It's "+t+" boss!"); return; }
-              if(lower.startsWith("search ")){ String q=cmd.substring(7); Intent i=new Intent(Intent.ACTION_WEB_SEARCH); i.putExtra("query",q); try{startActivity(i); speak("Searching "+q);}catch(Exception e){} return; }
-              if(lower.startsWith("open ")){
-                String appName=lower.replace("open ","").trim();
-                PackageManager pm=getPackageManager(); List<ApplicationInfo> apps=pm.getInstalledApplications(0);
-                for(ApplicationInfo app: apps){ String label=pm.getApplicationLabel(app).toString().toLowerCase(); if(label.contains(appName)){ Intent launch=pm.getLaunchIntentForPackage(app.packageName); if(launch!=null){ startActivity(launch); speak("Opening "+pm.getApplicationLabel(app)+" boss!"); return; } } }
-                speak("Couldn't find "+appName); return;
-              }
-              speak("I hear you - "+cmd+". Say open [app], torch on/off, what time, search [thing]");
-            }
-          }
-          '''
-          open("app/src/main/java/com/paddington/rio/MainActivity.java","w").write(java_code)
+    def talk(self, instance):  # Added 'instance' parameter required by Kivy button binds
+        ans = rio_brain(self.input.text)
+        speak(ans, self.chat)
+        self.input.text = ""  # Fixed incomplete string assignment
 
-          # EXACT BUILD FILES FROM #12 THAT WERE GREEN
-          open("app/build.gradle","w").write("plugins { id 'com.android.application' }\nandroid { compileSdk 33\n defaultConfig { applicationId \"com.paddington.rio\"; minSdk 21; targetSdk 33; versionCode 20; versionName \"20.0\" }\n buildTypes { release { minifyEnabled false } } }")
-          open("build.gradle","w").write("plugins { id 'com.android.application' version '7.4.2' apply false }")
-          open("settings.gradle","w").write("include ':app'")
-          PY
+# Added the main App wrapper to actually run the program
+class RioApp(App):
+    def build(self):
+        return RIO_UI()
 
-      - name: Build APK
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: assembleDebug
-          gradle-version: 7.5
-
-      - name: Upload APK Artifact
+if __name__ == '__main__':
+    RioApp().run()
