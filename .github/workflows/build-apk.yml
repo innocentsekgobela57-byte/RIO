@@ -9,6 +9,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - uses: android-actions/setup-android@v3
       - name: Install Gradle
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
@@ -27,7 +28,7 @@ jobs:
           EOF
           cat > app/build.gradle << 'EOF'
           plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-          android { namespace 'com.rio.voice'; compileSdk 34; defaultConfig { applicationId "com.rio.voice"; minSdk 26; targetSdk 34; versionCode 1; versionName "12" } buildTypes { release { minifyEnabled false } } }
+          android { namespace 'com.rio.voice'; compileSdk 34; defaultConfig { applicationId "com.rio.voice"; minSdk 26; targetSdk 34; versionCode 1; versionName "1" } buildTypes { release { minifyEnabled false } } }
           dependencies { implementation "androidx.core:core-ktx:1.12.0"; implementation "androidx.appcompat:appcompat:1.6.1" }
           EOF
           mkdir -p app/src/main
