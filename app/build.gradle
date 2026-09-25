@@ -3,15 +3,17 @@ plugins {
 }
 
 android {
-    namespace 'com.rio.app'
+    namespace 'com.example.Rio'
     compileSdk 34
+
     defaultConfig {
-        applicationId "com.rio.app"
+        applicationId "com.example.Rio"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0"
     }
+
     buildTypes {
         release {
             minifyEnabled false
