@@ -1,7 +1,5 @@
 name: Build Rio APK
-on:
-  push:
-    branches: [ main ]
+on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,10 +9,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - run: chmod +x gradlew
-      - run: ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
         with:
-          name: Rio-APK
-          path: app/build/outputs/apk/debug/app-debug.apk  String appName=lower.replace("open ","").trim();
-                
+          gradle-version: 8.5
+      - name: Build APK
+        run: gradle assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RIO-apk
+          path: app/build/outputs/apk/debug/*.apk
