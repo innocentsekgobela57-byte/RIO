@@ -19,15 +19,9 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/assets
           dd if=/dev/zero of=app/src/main/assets/big.dat bs=1M count=15
-
           python3 << 'PY'
-          # strings
           open("app/src/main/res/values/strings.xml","w").write('<resources><string name="app_name">Rio v20</string></resources>')
-
-          # Manifest
           open("app/src/main/AndroidManifest.xml","w").write('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.paddington.rio">\n<uses-permission android:name="android.permission.INTERNET"/>\n<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n<uses-permission android:name="android.permission.CAMERA"/>\n<uses-permission android:name="android.permission.FLASHLIGHT"/>\n<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>\n<application android:label="Rio v20" android:theme="@android:style/Theme.NoTitleBar">\n<activity android:name=".MainActivity" android:exported="true">\n<intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>\n</activity>\n</application>\n</manifest>')
-
-          # MainActivity - FULL CONTROL + MY PERSONALITY
           code = '''
           package com.paddington.rio;
           import android.app.Activity; import android.os.Bundle; import android.content.pm.PackageManager;
@@ -43,21 +37,21 @@ jobs:
               TextView title=new TextView(this); title.setText("RIO v20\\nby Paddington T'cee"); title.setTextColor(Color.parseColor("#FF6B00"));
               title.setTextSize(22); title.setGravity(Gravity.CENTER); root.addView(title);
               log=new TextView(this); log.setTextColor(Color.WHITE);
-              log.setText("Yo boss! I'm Rio v20 - warm, playful, smart like Meta AI!\\n\\nCommands:\\n• open [any app] - whatsapp, tiktok, youtube, any!\\n• torch on / torch off\\n• what time is it\\n• search [anything]");
+              log.setText("Yo boss! Rio v20 - warm, playful, smart!\\n\\nopen [any app], torch on/off, what time, search [x]");
               ScrollView sv=new ScrollView(this); sv.addView(log); root.addView(sv);
-              input=new EditText(this); input.setHint("Type: open whatsapp, torch on"); input.setTextColor(Color.WHITE); root.addView(input);
+              input=new EditText(this); input.setHint("Type command"); input.setTextColor(Color.WHITE); root.addView(input);
               Button btn=new Button(this); btn.setText("SEND TO RIO"); btn.setOnClickListener(v->{ handle(input.getText().toString()); input.setText(""); }); root.addView(btn);
               setContentView(root);
               tts=new TextToSpeech(this,this);
               try{ camMan=(CameraManager)getSystemService(CAMERA_SERVICE); camId=camMan.getCameraIdList()[0]; }catch(Exception e){}
             }
-            public void onInit(int s){ if(s==TextToSpeech.SUCCESS){ tts.setSpeechRate(0.92f); speak("Yo boss! Rio v twenty ready! Full phone control! Built by Paddington Tcee!"); } }
+            public void onInit(int s){ if(s==TextToSpeech.SUCCESS){ tts.setSpeechRate(0.92f); speak("Rio v twenty ready! Built by Paddington Tcee!"); } }
             void speak(String txt){ log.append("\\n\\nRio: "+txt); if(tts!=null) tts.speak(txt, TextToSpeech.QUEUE_FLUSH, null, null); }
             void handle(String cmd){
               if(cmd.isEmpty())return; log.append("\\n\\nYou: "+cmd); String lower=cmd.toLowerCase();
-              if(lower.contains("torch on")){ try{ camMan.setTorchMode(camId,true); speak("Torch on boss! 🔦"); }catch(Exception e){speak("No torch");} return; }
+              if(lower.contains("torch on")){ try{ camMan.setTorchMode(camId,true); speak("Torch on boss!"); }catch(Exception e){} return; }
               if(lower.contains("torch off")){ try{ camMan.setTorchMode(camId,false); speak("Torch off"); }catch(Exception e){} return; }
-              if(lower.contains("what time")){ String t=new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date()); speak("It's "+t+" boss! Namakgale time!"); return; }
+              if(lower.contains("what time")){ String t=new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date()); speak("It's "+t+" boss!"); return; }
               if(lower.startsWith("search ")){ String q=cmd.substring(7); Intent i=new Intent(Intent.ACTION_WEB_SEARCH); i.putExtra("query",q); try{startActivity(i); speak("Searching "+q);}catch(Exception e){} return; }
               if(lower.startsWith("open ")){
                 String appName=lower.replace("open ","").trim();
@@ -71,31 +65,13 @@ jobs:
                 }
                 speak("Couldn't find "+appName); return;
               }
-              if(lower.contains("who are you")){ speak("I'm Rio v20! Created by Paddington T'cee! Warm, playful, smart - more than AI, your brother!"); return; }
-              speak("I hear you - "+cmd+". Tell me: open [app], torch on/off, what time, search [thing]. I got you boss!");
+              speak("I hear you - "+cmd+". Commands: open [app], torch on/off, what time, search [thing]");
             }
           }
           '''
           open("app/src/main/java/com/paddington/rio/MainActivity.java","w").write(code)
-
-          # FIXED BUILD FILES - THIS WAS THE ERROR!
-          open("app/build.gradle","w").write("""
-          apply plugin: 'com.android.application'
-          android {
-            compileSdkVersion 33
-            defaultConfig { applicationId "com.paddington.rio"; minSdkVersion 21; targetSdkVersion 33; versionCode 20; versionName "20.0" }
-            buildTypes { release { minifyEnabled false } }
-          }
-          """)
-
-          open("build.gradle","w").write("""
-          buildscript {
-            repositories { google(); mavenCentral(); gradlePluginPortal() }
-            dependencies { classpath 'com.android.tools.build:gradle:7.4.2' }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          """)
-
+          open("app/build.gradle","w").write("apply plugin: 'com.android.application'\nandroid { compileSdkVersion 33\n defaultConfig { applicationId \"com.paddington.rio\"; minSdkVersion 21; targetSdkVersion 33; versionCode 20; versionName \"20.0\" }\n buildTypes { release { minifyEnabled false } } }")
+          open("build.gradle","w").write("buildscript { repositories { google(); mavenCentral(); gradlePluginPortal() } dependencies { classpath 'com.android.tools.build:gradle:7.4.2' } }\nallprojects { repositories { google(); mavenCentral() } }")
           open("settings.gradle","w").write("include ':app'")
           PY
 
@@ -105,11 +81,17 @@ jobs:
           arguments: assembleDebug
           gradle-version: 7.5
 
+      - name: Upload APK Artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rio-v20-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: rio-v20-fixed-final
-          name: "Rio v20 - Full Control 18MB"
+          tag_name: rio-v20-${{ github.run_number }}
+          name: "Rio v20 Full Control - Build ${{ github.run_number }}"
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
