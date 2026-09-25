@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Create Rio V8
         run: |
@@ -29,7 +29,7 @@ jobs:
           GR
           cat > build.gradle << 'GR2'
           buildscript {
-            repositories { google(); mavenCentral(); gradlePluginPortal() }
+            repositories { google(); mavenCentral() }
             dependencies { classpath 'com.android.tools.build:gradle:4.2.2' }
           }
           allprojects { repositories { google(); mavenCentral() } }
@@ -47,7 +47,7 @@ jobs:
               android.widget.LinearLayout root=new android.widget.LinearLayout(this); root.setOrientation(1);
               root.setBackgroundColor(Color.parseColor("#111111")); root.setPadding(30,30,30,30);
               TextView title=new TextView(this); title.setText("RIO V8\nby Paddington T'cee"); title.setTextColor(Color.parseColor("#FF6B00")); title.setTextSize(24); title.setGravity(17); root.addView(title);
-              log=new TextView(this); log.setTextColor(Color.WHITE); log.setText("Yo boss! I'm Rio V8 - stable & fast!\n\nCommands:\n• open whatsapp / tiktok / youtube / any app\n• torch on / torch off"); root.addView(log);
+              log=new TextView(this); log.setTextColor(Color.WHITE); log.setText("Yo boss! Rio V8 - stable & fast!\n\nCommands:\n- open whatsapp / tiktok / youtube\n- torch on / torch off"); root.addView(log);
               input=new EditText(this); input.setHint("Type: open whatsapp"); input.setTextColor(Color.WHITE); root.addView(input);
               Button btn=new Button(this); btn.setText("SEND TO RIO"); btn.setOnClickListener(v->{ handle(input.getText().toString()); input.setText(""); }); root.addView(btn);
               setContentView(root);
@@ -73,12 +73,11 @@ jobs:
       - name: Build APK V8
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: assembleDebug --no-daemon
+          arguments: assembleDebug --no-daemon --stacktrace
           gradle-version: 6.7.1
           cache-disabled: true
 
       - name: Upload APK
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Rio-V8-APK
