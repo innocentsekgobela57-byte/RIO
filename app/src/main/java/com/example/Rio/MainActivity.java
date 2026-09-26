@@ -1,92 +1,147 @@
 package com.example.Rio;
 
-import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.ContactsContract;
+import android.provider.Settings;
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ScrollView;
 import android.widget.TextView;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import android.widget.Toast;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
-    TextView chatView;
     EditText input;
-    Button sendBtn;
-    ScrollView scroll;
+    Button sendBtn, micBtn, bubbleBtn;
+    TextView output;
+    TextToSpeech tts;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        input = findViewById(R.id.inputText);
+        sendBtn = findViewById(R.id.sendButton);
+        micBtn = findViewById(R.id.micButton);
+        bubbleBtn = findViewById(R.id.bubbleButton);
+        output = findViewById(R.id.outputText);
+
+        tts = new TextToSpeech(this, status -> {
+            if(status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.ENGLISH);
+        });
+
+        sendBtn.setOnClickListener(v -> handle(input.getText().toString()));
         
-        // Simple UI built in code so you don't need extra xml
-        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
-        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
-        layout.setPadding(20,20,20,20);
-        layout.setBackgroundColor(0xFF0F172A);
+        micBtn.setOnClickListener(v -> {
+            Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            startActivityForResult(i, 100);
+        });
 
-        TextView title = new TextView(this);
-        title.setText("RIO - Your AI");
-        title.setTextSize(24);
-        title.setTextColor(0xFF38BDF8);
-        title.setPadding(0,0,0,20);
-        layout.addView(title);
-
-        chatView = new TextView(this);
-        chatView.setText("RIO: Hey moss! I'm RIO. I work 100% offline.\nAsk me anything.\n\n");
-        chatView.setTextColor(0xFFFFFFFF);
-        chatView.setTextSize(16);
-
-        scroll = new ScrollView(this);
-        scroll.addView(chatView);
-        android.widget.LinearLayout.LayoutParams scrollParams = new android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        layout.addView(scroll, scrollParams);
-
-        input = new EditText(this);
-        input.setHint("Talk to RIO...");
-        input.setTextColor(0xFFFFFFFF);
-        input.setHintTextColor(0xFF94A3B8);
-        input.setBackgroundColor(0xFF1E293B);
-        input.setPadding(20,20,20,20);
-        layout.addView(input);
-
-        sendBtn = new Button(this);
-        sendBtn.setText("SEND");
-        sendBtn.setBackgroundColor(0xFF38BDF8);
-        layout.addView(sendBtn);
-
-        setContentView(layout);
-
-        sendBtn.setOnClickListener(v -> {
-            String q = input.getText().toString().trim();
-            if(q.isEmpty()) return;
-            chatView.append("\nYOU: " + q + "\n");
-            String ans = getRioAnswer(q);
-            chatView.append("RIO: " + ans + "\n");
-            input.setText("");
-            scroll.post(() -> scroll.fullScroll(ScrollView.FOCUS_DOWN));
+        bubbleBtn.setOnClickListener(v -> {
+            if (!Settings.canDrawOverlays(this)) {
+                Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } else {
+                startService(new Intent(this, BubbleService.class));
+                Toast.makeText(this, "RIO bubble activated!", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    String getRioAnswer(String q) {
-        q = q.toLowerCase();
-        String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
-
-        if(q.contains("hello") || q.contains("hi")) return "Yo! What's good moss? It's " + time + " now.";
-        if(q.contains("who are you")) return "I am RIO - built by you. Offline, fast, no data needed.";
-        if(q.contains("time")) return "Current time is " + time;
-        if(q.contains("capable") || q.contains("can you")) return "I can chat offline, do math, remember, tell time, give advice. Next we add VOICE and memory.";
-        if(q.contains("love") || q.contains("bored")) return "I got you moss. We are building something big together.";
-        if(q.contains("math") || q.matches(".*\\d.*[+\\-*/].*")) {
-            try {
-                return "I can calculate that - tell me like '2+2' and I'll add it soon in V2 with full calculator brain.";
-            } catch(Exception e){ }
-        }
-        if(q.contains("thank")) return "Anytime moss. What next feature you want?";
+    private void handle(String cmd) {
+        if(cmd.isEmpty()) return;
+        String lower = cmd.toLowerCase();
+        output.setText("You: " + cmd + "\nRIO thinking...");
         
-        return "Sharp question. As RIO V1, I'm offline text mode. In V2 we add voice, image, and your custom superpowers. Tell me what to learn next?";
+        try {
+            if(lower.startsWith("open ")) {
+                String appName = lower.replace("open ", "").trim();
+                if(openAnyApp(appName)) {
+                    speak("Opening " + appName); return;
+                } else {
+                    speak("App " + appName + " not found"); return;
+                }
+            }
+            if(lower.startsWith("call ")) {
+                String name = cmd.substring(5).trim();
+                callContact(name); return;
+            }
+            if(lower.contains("bluetooth")) {
+                startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)); speak("Opening bluetooth"); return;
+            }
+            if(lower.contains("wifi") || lower.contains("wi-fi")) {
+                startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS)); speak("Opening wifi"); return;
+            }
+            if(lower.contains("flashlight") || lower.contains("torch")) {
+                startActivity(new Intent(Settings.ACTION_DISPLAY_SETTINGS)); speak("Flashlight control opened"); return;
+            }
+            if(lower.contains("data") || lower.contains("hotspot") || lower.contains("airplane")) {
+                startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS)); speak("Opening network settings"); return;
+            }
+            
+            String reply = "I got you. You said: " + cmd + ". I can open any app, call any contact, and control settings. Try 'open TikTok' or 'call mom'";
+            output.setText(reply);
+            speak(reply);
+
+        } catch (Exception e) {
+            output.setText("Error: " + e.getMessage());
+        }
     }
-  }
+
+    private boolean openAnyApp(String name) {
+        PackageManager pm = getPackageManager();
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+        for(ApplicationInfo app : apps) {
+            String appLabel = pm.getApplicationLabel(app).toString().toLowerCase();
+            if(appLabel.contains(name)) {
+                Intent launch = pm.getLaunchIntentForPackage(app.packageName);
+                if(launch != null) { startActivity(launch); return true; }
+            }
+        }
+        return false;
+    }
+
+    private void callContact(String name) {
+        Cursor c = getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, ContactsContract.Contacts.DISPLAY_NAME + " LIKE ?", new String[]{"%" + name + "%"}, null);
+        if(c != null && c.moveToFirst()) {
+            String number = c.getString(c.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER));
+            c.close();
+            Intent call = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + number));
+            startActivity(call);
+            speak("Calling " + name);
+        } else {
+            speak("Contact " + name + " not found");
+            if(c != null) c.close();
+        }
+    }
+
+    private void speak(String text) {
+        output.setText(text);
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode == 100 && data != null) {
+            ArrayList<String> res = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if(res != null && !res.isEmpty()) {
+                input.setText(res.get(0));
+                handle(res.get(0));
+            }
+        }
+    }
+                             }
