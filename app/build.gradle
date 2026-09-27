@@ -2,14 +2,14 @@ plugins {
     id 'com.android.application'
 }
 android {
-    namespace 'com.example.Rio'
+    namespace 'com.rio.v4'
     compileSdk 34
     defaultConfig {
-        applicationId "com.example.Rio"
-        minSdk 24
+        applicationId "com.rio.v4"
+        minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "3.0"
+        versionCode 4
+        versionName "4.0-safe"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -17,5 +17,4 @@ android {
     }
 }
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
